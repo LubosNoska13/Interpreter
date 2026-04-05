@@ -1,5 +1,7 @@
 """Expression evaluator for the SOL26 interpreter."""
 
+from typing import TextIO
+
 from interpreter.error_codes import ErrorCode
 from interpreter.exceptions import InterpreterError
 from interpreter.input_model import Block, Expr, Literal, Method, Send, Var
@@ -9,9 +11,10 @@ from interpreter.sol_object import Environment, SOLClass, SOLObject
 class Evaluator:
     """Evaluates SOL26 expressions within a given variable environment."""
 
-    def __init__(self, classes: dict[str, SOLClass]) -> None:
+    def __init__(self, classes: dict[str, SOLClass], input_io: TextIO) -> None:
         """Initialize the evaluator with the class registry."""
         self.classes = classes
+        self.input_io = input_io
 
     def _eval_literal(self, literal: Literal) -> SOLObject:
         """Create a SOLObject from a literal node."""
@@ -22,7 +25,9 @@ class Evaluator:
         if literal.class_id == "Integer":
             obj.native_value = int(literal.value)
         elif literal.class_id == "String":
-            obj.native_value = literal.value
+            obj.native_value = (
+                literal.value.replace("\\n", "\n").replace("\\'", "'").replace("\\\\", "\\")
+            )
         return obj
 
     def _eval_var(self, var: Var, env: Environment) -> SOLObject:
@@ -117,6 +122,29 @@ class Evaluator:
             obj.native_value = str(receiver.native_value) + str(args[0].native_value)
             return obj
 
+        if selector == "asInteger":
+            try:
+                obj = SOLObject(self.classes["Integer"], {})
+                obj.native_value = int(str(receiver.native_value))
+                return obj
+            except ValueError:
+                return SOLObject(self.classes["Nil"], {})
+
+        if selector == "read":
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = self.input_io.readline().rstrip("\n")
+            return obj
+
+        if selector == "startsWith:endsBefore:":
+            s = str(receiver.native_value)
+            start = self._int_val(args[0]) - 1
+            end = self._int_val(args[1]) - 1
+            if start < 0 or end < 0 or start > len(s) or end > len(s):
+                return SOLObject(self.classes["Nil"], {})
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = s[start:end] if end > start else ""
+            return obj
+
         return None
 
     def _dispatch_integer(
@@ -201,6 +229,43 @@ class Evaluator:
 
         return None
 
+    def _dispatch_nil(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle built-in Nil messages."""
+        if selector == "asString":
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = "nil"
+            return obj
+        return None
+
+    def _dispatch_block(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle built-in Block messages."""
+        if selector.startswith("value"):
+            return self._execute_block(receiver, args)
+        return None
+
+    def _dispatch_object(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle built-in Object messages available to all objects."""
+        if selector == "identicalTo:":
+            result = receiver is args[0]
+            return SOLObject(self.classes["True" if result else "False"], {})
+
+        if selector == "equalTo:":
+            result = receiver is args[0]
+            return SOLObject(self.classes["True" if result else "False"], {})
+        if selector == "asString":
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = ""
+            return obj
+        if selector in ("isNumber", "isString", "isBlock", "isNil", "isBoolean"):
+            return SOLObject(self.classes["False"], {})
+        return None
+
     def _dispatch_builtin(
         self, receiver: SOLObject, selector: str, args: list[SOLObject]
     ) -> SOLObject | None:
@@ -216,7 +281,13 @@ class Evaluator:
         if class_name in ("True", "False"):
             return self._dispatch_bool(receiver, selector, args)
 
-        return None
+        if class_name == "Nil":
+            return self._dispatch_nil(receiver, selector, args)
+
+        if class_name == "Block":
+            return self._dispatch_block(receiver, selector, args)
+
+        return self._dispatch_object(receiver, selector, args)
 
     def _lookup_method(self, sol_class: SOLClass, selector: str) -> Method | None:
         """Search for a method by selector in the class hierarchy, returning None if not found."""

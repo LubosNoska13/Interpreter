@@ -89,82 +89,132 @@ class Evaluator:
         return result
 
     def _int_val(self, obj: SOLObject) -> int:
-        """Extract the native integer value from a SOLObject, raising an error if not an Integer."""
+        """Extract the native int value from a SOLObject, raising an error if not an Integer."""
         if not isinstance(obj.native_value, int):
             raise InterpreterError(ErrorCode.INT_OTHER, "Expected Integer")
         return obj.native_value
 
-    def _dispatch_builtin(
+    def _dispatch_string(
         self, receiver: SOLObject, selector: str, args: list[SOLObject]
     ) -> SOLObject | None:
-        class_name = receiver.sol_class.name
-
-        # String
-        if class_name == "String" and selector == "print":
+        """Handle built-in String messages."""
+        if selector == "print":
             print(receiver.native_value, end="")
             return receiver
 
-        if class_name == "String" and selector == "asString":
+        if selector == "asString":
             return receiver
 
-        if class_name == "String" and selector == "length":
+        if selector == "length":
             obj = SOLObject(self.classes["Integer"], {})
             obj.native_value = len(str(receiver.native_value))
             return obj
 
-        if class_name == "String" and selector == "concatenateWith:":
+        if selector == "concatenateWith:":
             if args[0].sol_class.name not in ("String",):
                 return SOLObject(self.classes["Nil"], {})
             obj = SOLObject(self.classes["String"], {})
             obj.native_value = str(receiver.native_value) + str(args[0].native_value)
             return obj
 
-        # Number
-        if class_name == "Integer" and selector == "asString":
+        return None
+
+    def _dispatch_integer(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle built-in Integer messages."""
+        if selector == "asString":
             obj = SOLObject(self.classes["String"], {})
             obj.native_value = str(receiver.native_value)
             return obj
 
-        if class_name == "Integer" and selector == "plus:":
+        if selector == "plus:":
             obj = SOLObject(self.classes["Integer"], {})
             obj.native_value = self._int_val(receiver) + self._int_val(args[0])
             return obj
 
-        if class_name == "Integer" and selector == "minus:":
+        if selector == "minus:":
             obj = SOLObject(self.classes["Integer"], {})
             obj.native_value = self._int_val(receiver) - self._int_val(args[0])
             return obj
 
-        if class_name == "Integer" and selector == "multiplyBy:":
+        if selector == "multiplyBy:":
             obj = SOLObject(self.classes["Integer"], {})
             obj.native_value = self._int_val(receiver) * self._int_val(args[0])
             return obj
 
-        if class_name == "Integer" and selector == "divBy:":
+        if selector == "divBy:":
             if args[0].native_value == 0:
                 raise InterpreterError(ErrorCode.INT_INVALID_ARG, "Division by zero")
             obj = SOLObject(self.classes["Integer"], {})
             obj.native_value = self._int_val(receiver) // self._int_val(args[0])
             return obj
 
-        if class_name == "Integer" and selector == "equalTo:":
+        if selector == "equalTo:":
             result = self._int_val(receiver) == self._int_val(args[0])
             return SOLObject(self.classes["True" if result else "False"], {})
 
-        if class_name == "Integer" and selector == "greaterThan:":
+        if selector == "greaterThan:":
             result = self._int_val(receiver) > self._int_val(args[0])
             return SOLObject(self.classes["True" if result else "False"], {})
 
-        if class_name == "Integer" and selector == "asInteger":
+        if selector == "asInteger":
             return receiver
 
-        if class_name == "Integer" and selector == "timesRepeat:":
+        if selector == "timesRepeat:":
             block_obj = args[0]
             for i in range(1, self._int_val(receiver) + 1):
                 iter_obj = SOLObject(self.classes["Integer"], {})
                 iter_obj.native_value = i
                 self._execute_block(block_obj, [iter_obj])
             return receiver
+
+        return None
+
+    def _dispatch_bool(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle built-in True and False messages."""
+        is_true = receiver.sol_class.name == "True"
+
+        if selector == "not":
+            return SOLObject(self.classes["False" if is_true else "True"], {})
+
+        if selector == "asString":
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = "true" if is_true else "false"
+            return obj
+
+        if selector == "and:":
+            if not is_true:
+                return receiver
+            return self._execute_block(args[0], [])
+
+        if selector == "or:":
+            if is_true:
+                return receiver
+            return self._execute_block(args[0], [])
+
+        if selector == "ifTrue:ifFalse:":
+            branch = args[0] if is_true else args[1]
+            return self._execute_block(branch, [])
+
+        return None
+
+    def _dispatch_builtin(
+        self, receiver: SOLObject, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Dispatch a built-in method call, returning None if no built-in matches."""
+        class_name = receiver.sol_class.name
+
+        if class_name == "String":
+            return self._dispatch_string(receiver, selector, args)
+
+        if class_name == "Integer":
+            return self._dispatch_integer(receiver, selector, args)
+
+        if class_name in ("True", "False"):
+            return self._dispatch_bool(receiver, selector, args)
 
         return None
 

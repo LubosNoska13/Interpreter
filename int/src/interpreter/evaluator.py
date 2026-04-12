@@ -54,14 +54,59 @@ class Evaluator:
         result = self._dispatch_builtin(receiver, send.selector, args)
         if result is not None:
             return result
-        method = self._lookup_method(receiver.sol_class, send.selector)
+
+        is_super = send.receiver.var is not None and send.receiver.var.name == "super"
+        if is_super and env.current_class is not None and env.current_class.parent is not None:
+            start_class = env.current_class.parent
+        else:
+            start_class = receiver.sol_class
+
+        method = self._lookup_method(start_class, send.selector)
         if method is None:
+            if len(args) == 1 and not send.selector.endswith(":"):
+                raise InterpreterError(
+                    ErrorCode.INT_DNU,
+                    f"'{receiver.sol_class.name}' does not understand '{send.selector}'",
+                )
+
+            if len(args) == 1:
+                attr_name = send.selector.rstrip(":")
+                if attr_name in receiver.sol_class.methods:
+                    raise InterpreterError(
+                        ErrorCode.INT_INST_ATTR, f"Attribute '{attr_name}' collides with method"
+                    )
+                receiver.attributes[attr_name] = args[0]
+                return args[0]
+
+            if len(args) == 0 and send.selector in receiver.attributes:
+                return receiver.attributes[send.selector]
+
             raise InterpreterError(
                 ErrorCode.INT_DNU,
                 f"'{receiver.sol_class.name}' does not understand '{send.selector}'",
             )
 
-        return self._execute_method(method, receiver, args)
+        return self._execute_method(method, receiver, args, start_class)
+
+    def _execute_method(
+        self, method: Method, receiver: SOLObject, args: list[SOLObject], current_class: SOLClass
+    ) -> SOLObject:
+        """Execute a method by binding parameters and evaluating its assignments."""
+        variables: dict[str, SOLObject] = {"self": receiver, "super": receiver}
+        for param, arg in zip(method.block.parameters, args, strict=True):
+            variables[param.name] = arg
+        method_env = Environment(variables, parent=None)
+        method_env.current_class = current_class
+        param_names = {p.name for p in method.block.parameters}
+        result: SOLObject = receiver
+        for assign in method.block.assigns:
+            if assign.target.name in param_names:
+                raise InterpreterError(
+                    ErrorCode.SEM_COLLISION, f"Assignment to parameter '{assign.target.name}'"
+                )
+            result = self.evaluate(assign.expr, method_env)
+            self._set_variable(method_env, assign.target.name, result)
+        return result
 
     def evaluate(self, expr: Expr, env: Environment) -> SOLObject:
         """Evaluate an expression and return the resulting SOLObject."""
@@ -81,15 +126,24 @@ class Evaluator:
         if block_obj.block_node is None or block_obj.block_env is None:
             raise InterpreterError(ErrorCode.INT_OTHER, "Not a valid block")
 
+        if len(args) != len(block_obj.block_node.parameters):
+            raise InterpreterError(ErrorCode.SEM_ARITY,
+                f"Block expects {len(block_obj.block_node.parameters)} args, got {len(args)}")
+
         variables: dict[str, SOLObject] = {}
         for param, arg in zip(block_obj.block_node.parameters, args, strict=True):
             variables[param.name] = arg
 
         block_env = Environment(variables, parent=block_obj.block_env)
+        param_names = {p.name for p in block_obj.block_node.parameters}
         result: SOLObject = block_obj
         for assign in block_obj.block_node.assigns:
+            if assign.target.name in param_names:
+                raise InterpreterError(
+                    ErrorCode.SEM_COLLISION, f"Assignment to parameter '{assign.target.name}'"
+                )
             result = self.evaluate(assign.expr, block_env)
-            block_env.variables[assign.target.name] = result
+            self._set_variable(block_env, assign.target.name, result)
 
         return result
 
@@ -144,6 +198,12 @@ class Evaluator:
             obj = SOLObject(self.classes["String"], {})
             obj.native_value = s[start:end] if end > start else ""
             return obj
+
+        if selector == "equalTo:":
+            if args[0].sol_class.name != "String":
+                return SOLObject(self.classes["False"], {})
+            result = receiver.native_value == args[0].native_value
+            return SOLObject(self.classes["True" if result else "False"], {})
 
         return None
 
@@ -227,6 +287,10 @@ class Evaluator:
             branch = args[0] if is_true else args[1]
             return self._execute_block(branch, [])
 
+        if selector == "equalTo:":
+            result = receiver.sol_class.name == args[0].sol_class.name
+            return SOLObject(self.classes["True" if result else "False"], {})
+
         return None
 
     def _dispatch_nil(
@@ -245,7 +309,28 @@ class Evaluator:
         """Handle built-in Block messages."""
         if selector.startswith("value"):
             return self._execute_block(receiver, args)
+
+        if selector == "whileTrue:":
+            body = args[0]
+            while True:
+                condition = self._execute_block(receiver, [])
+                if condition.sol_class.name != "True":
+                    break
+                self._execute_block(body, [])
+            return SOLObject(self.classes["Nil"], {})
+
         return None
+
+    def _set_variable(self, env: Environment, name: str, value: SOLObject) -> None:
+      """Assign a variable, updating it in the nearest enclosing scope where it exists."""
+      current: Environment | None = env
+      while current is not None:
+          if name in current.variables:
+              current.variables[name] = value
+              return
+          current = current.parent
+      env.variables[name] = value
+
 
     def _dispatch_object(
         self, receiver: SOLObject, selector: str, args: list[SOLObject]
@@ -258,12 +343,32 @@ class Evaluator:
         if selector == "equalTo:":
             result = receiver is args[0]
             return SOLObject(self.classes["True" if result else "False"], {})
+
         if selector == "asString":
             obj = SOLObject(self.classes["String"], {})
             obj.native_value = ""
             return obj
-        if selector in ("isNumber", "isString", "isBlock", "isNil", "isBoolean"):
-            return SOLObject(self.classes["False"], {})
+
+        if selector == "isNil":
+            result = receiver.sol_class.name == "Nil"
+            return SOLObject(self.classes["True" if result else "False"], {})
+
+        if selector == "isBoolean":
+            result = receiver.sol_class.name in ("True", "False")
+            return SOLObject(self.classes["True" if result else "False"], {})
+
+        if selector == "isNumber":
+            result = receiver.sol_class.name == "Integer"
+            return SOLObject(self.classes["True" if result else "False"], {})
+
+        if selector == "isString":
+            result = receiver.sol_class.name == "String"
+            return SOLObject(self.classes["True" if result else "False"], {})
+
+        if selector == "isBlock":
+            result = receiver.sol_class.name == "Block"
+            return SOLObject(self.classes["True" if result else "False"], {})
+
         return None
 
     def _dispatch_builtin(
@@ -297,20 +402,3 @@ class Evaluator:
                 return current.methods[selector]
             current = current.parent
         return None
-
-    def _execute_method(
-        self, method: Method, receiver: SOLObject, args: list[SOLObject]
-    ) -> SOLObject:
-        """Execute a method by binding parameters and evaluating its assignments."""
-        variables: dict[str, SOLObject] = {"self": receiver}
-        for param, arg in zip(method.block.parameters, args, strict=True):
-            variables[param.name] = arg
-
-        method_env = Environment(variables, parent=None)
-
-        result: SOLObject = receiver
-        for assign in method.block.assigns:
-            result = self.evaluate(assign.expr, method_env)
-            method_env.variables[assign.target.name] = result
-
-        return result

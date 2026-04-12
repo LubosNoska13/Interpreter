@@ -30,3 +30,4 @@ class Environment:
     def __init__(self, variables: dict[str, SOLObject], parent: Environment | None) -> None:
         self.variables = variables
         self.parent = parent
+        self.current_class: SOLClass | None = None

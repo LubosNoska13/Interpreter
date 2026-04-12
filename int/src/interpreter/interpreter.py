@@ -89,4 +89,4 @@ class Interpreter:
         evaluator = Evaluator(self.classes, input_io)
         main_instance = SOLObject(main_class, {})
         run_method = main_class.methods["run"]
-        evaluator._execute_method(run_method, main_instance, [])
+        evaluator._execute_method(run_method, main_instance, [], self.classes["Main"])

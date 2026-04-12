@@ -11,6 +11,7 @@ class SOLClass:
         self.name = name
         self.parent = parent
         self.methods = methods
+        self.singleton_instance: SOLObject | None = None
 
 
 class SOLObject:
@@ -22,6 +23,8 @@ class SOLObject:
         self.native_value: int | str | None = None
         self.block_node: BlockNode | None = None
         self.block_env: Environment | None = None
+        self.is_class_ref: bool = False
+        self.referred_class: SOLClass | None = None
 
 
 class Environment:

@@ -28,6 +28,11 @@ class Evaluator:
             obj.native_value = (
                 literal.value.replace("\\n", "\n").replace("\\'", "'").replace("\\\\", "\\")
             )
+
+        if literal.value == literal.class_id:
+            obj.is_class_ref = True
+            obj.referred_class = sol_class
+
         return obj
 
     def _eval_var(self, var: Var, env: Environment) -> SOLObject:
@@ -127,8 +132,10 @@ class Evaluator:
             raise InterpreterError(ErrorCode.INT_OTHER, "Not a valid block")
 
         if len(args) != len(block_obj.block_node.parameters):
-            raise InterpreterError(ErrorCode.SEM_ARITY,
-                f"Block expects {len(block_obj.block_node.parameters)} args, got {len(args)}")
+            raise InterpreterError(
+                ErrorCode.SEM_ARITY,
+                f"Block expects {len(block_obj.block_node.parameters)} args, got {len(args)}",
+            )
 
         variables: dict[str, SOLObject] = {}
         for param, arg in zip(block_obj.block_node.parameters, args, strict=True):
@@ -322,15 +329,14 @@ class Evaluator:
         return None
 
     def _set_variable(self, env: Environment, name: str, value: SOLObject) -> None:
-      """Assign a variable, updating it in the nearest enclosing scope where it exists."""
-      current: Environment | None = env
-      while current is not None:
-          if name in current.variables:
-              current.variables[name] = value
-              return
-          current = current.parent
-      env.variables[name] = value
-
+        """Assign a variable, updating it in the nearest enclosing scope where it exists."""
+        current: Environment | None = env
+        while current is not None:
+            if name in current.variables:
+                current.variables[name] = value
+                return
+            current = current.parent
+        env.variables[name] = value
 
     def _dispatch_object(
         self, receiver: SOLObject, selector: str, args: list[SOLObject]
@@ -377,6 +383,9 @@ class Evaluator:
         """Dispatch a built-in method call, returning None if no built-in matches."""
         class_name = receiver.sol_class.name
 
+        if receiver.is_class_ref and receiver.referred_class is not None:
+            return self._dispatch_class(receiver.referred_class, selector, args)
+
         if class_name == "String":
             return self._dispatch_string(receiver, selector, args)
 
@@ -401,4 +410,23 @@ class Evaluator:
             if selector in current.methods:
                 return current.methods[selector]
             current = current.parent
+        return None
+
+    def _dispatch_class(
+        self, sol_class: SOLClass, selector: str, args: list[SOLObject]
+    ) -> SOLObject | None:
+        """Handle class-side messages: new (constructor) and from: (copy constructor)."""
+        if selector == "new":
+            if sol_class.singleton_instance is not None:
+                return sol_class.singleton_instance
+            return SOLObject(sol_class, {})
+
+        if selector == "from:":
+            if sol_class.singleton_instance is not None:
+                return sol_class.singleton_instance
+            original = args[0]
+            obj = SOLObject(sol_class, dict(original.attributes))
+            obj.native_value = original.native_value
+            return obj
+
         return None

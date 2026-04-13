@@ -6,3 +6,7 @@ __pycache__
 .idea
 .vscode
 uv.lock
+node_modules/
+.node_modules/
+built/*
+dist/

@@ -45,4 +45,4 @@ RUN apt-get update && apt-get install -y curl && \
 COPY --from=build-test /src/tester/dist/ /src/tester/dist/
 COPY --from=build-test /src/tester/node_modules/ /src/tester/node_modules/                       
 COPY tester/package.json /src/tester/package.json 
-ENTRYPOINT ["node", "/src/tester/dist/tester.js"]
+ENTRYPOINT ["node", "/src/tester/dist/tester.js", "--interpreter", "python3 /src/int/src/solint.py"]

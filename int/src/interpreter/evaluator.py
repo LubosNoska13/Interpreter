@@ -21,7 +21,11 @@ class Evaluator:
         sol_class = self.classes.get(literal.class_id)
         if sol_class is None:
             raise InterpreterError(ErrorCode.SEM_UNDEF, f"Unknown class '{literal.class_id}'")
+
         obj = SOLObject(sol_class, {})
+        if sol_class.singleton_instance is not None:
+            return sol_class.singleton_instance
+
         if literal.class_id == "Integer":
             obj.native_value = int(literal.value)
         elif literal.class_id == "String":
@@ -185,7 +189,7 @@ class Evaluator:
             return obj
 
         if selector == "concatenateWith:":
-            if args[0].sol_class.name not in ("String",):
+            if self._builtin_base(args[0].sol_class) != "String":
                 return SOLObject(self.classes["Nil"], {})
             obj = SOLObject(self.classes["String"], {})
             obj.native_value = str(receiver.native_value) + str(args[0].native_value)
@@ -215,7 +219,7 @@ class Evaluator:
             return obj
 
         if selector == "equalTo:":
-            if args[0].sol_class.name != "String":
+            if self._builtin_base(args[0].sol_class) != "String":
                 return SOLObject(self.classes["False"], {})
             result = receiver.native_value == args[0].native_value
             return SOLObject(self.classes["True" if result else "False"], {})
@@ -364,23 +368,24 @@ class Evaluator:
             return obj
 
         if selector == "isNil":
-            result = receiver.sol_class.name == "Nil"
+            result = self._builtin_base(receiver.sol_class) == "Nil"
             return SOLObject(self.classes["True" if result else "False"], {})
 
         if selector == "isBoolean":
-            result = receiver.sol_class.name in ("True", "False")
+            base = self._builtin_base(receiver.sol_class)
+            result = base in ("True", "False")
             return SOLObject(self.classes["True" if result else "False"], {})
 
         if selector == "isNumber":
-            result = receiver.sol_class.name == "Integer"
+            result = self._builtin_base(receiver.sol_class) == "Integer"
             return SOLObject(self.classes["True" if result else "False"], {})
 
         if selector == "isString":
-            result = receiver.sol_class.name == "String"
+            result = self._builtin_base(receiver.sol_class) == "String"
             return SOLObject(self.classes["True" if result else "False"], {})
 
         if selector == "isBlock":
-            result = receiver.sol_class.name == "Block"
+            result = self._builtin_base(receiver.sol_class) == "Block"
             return SOLObject(self.classes["True" if result else "False"], {})
 
         return None
@@ -404,17 +409,20 @@ class Evaluator:
 
         base = self._builtin_base(receiver.sol_class)
 
+        result: SOLObject | None = None
         if base == "String":
-            return self._dispatch_string(receiver, selector, args)
-        if base == "Integer":
-            return self._dispatch_integer(receiver, selector, args)
-        if base in ("True", "False"):
-            return self._dispatch_bool(receiver, selector, args)
-        if base == "Nil":
-            return self._dispatch_nil(receiver, selector, args)
-        if base == "Block":
-            return self._dispatch_block(receiver, selector, args)
+            result = self._dispatch_string(receiver, selector, args)
+        elif base == "Integer":
+            result = self._dispatch_integer(receiver, selector, args)
+        elif base in ("True", "False"):
+            result = self._dispatch_bool(receiver, selector, args)
+        elif base == "Nil":
+            result = self._dispatch_nil(receiver, selector, args)
+        elif base == "Block":
+            result = self._dispatch_block(receiver, selector, args)
 
+        if result is not None:
+            return result
         return self._dispatch_object(receiver, selector, args)
 
     def _lookup_method(self, sol_class: SOLClass, selector: str) -> tuple[Method, SOLClass] | None:

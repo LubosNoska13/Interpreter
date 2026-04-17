@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26">
+  <class name="MyInt" parent="Integer">
+  </class>
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="x"/>
+          <expr><send selector="new"><expr><literal class="MyInt" value="MyInt"/></expr></send></expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr><send selector="print">
+            <expr><send selector="asString">
+              <expr><send selector="isNumber">
+                <expr><var name="x"/></expr>
+              </send></expr>
+            </send></expr>
+          </send></expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

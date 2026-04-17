@@ -155,7 +155,9 @@ class Evaluator:
 
         block_env = Environment(variables, parent=block_obj.block_env)
         param_names = {p.name for p in block_obj.block_node.parameters}
-        result: SOLObject = block_obj
+        result: SOLObject = self.classes["Nil"].singleton_instance or SOLObject(
+            self.classes["Nil"], {}
+        )
         for assign in block_obj.block_node.assigns:
             if assign.target.name in param_names:
                 raise InterpreterError(
@@ -450,6 +452,11 @@ class Evaluator:
         if selector == "new":
             if sol_class.singleton_instance is not None:
                 return sol_class.singleton_instance
+            if self._builtin_base(sol_class) == "Block":
+                obj = SOLObject(sol_class, {})
+                obj.block_node = Block(arity=0, parameters=[], assigns=[])
+                obj.block_env = Environment({}, parent=None)
+                return obj
             return SOLObject(sol_class, {})
 
         if selector == "from:":
@@ -462,6 +469,11 @@ class Evaluator:
                 )
             obj = SOLObject(sol_class, dict(original.attributes))
             obj.native_value = original.native_value
+            return obj
+
+        if selector == "read":
+            obj = SOLObject(self.classes["String"], {})
+            obj.native_value = self.input_io.readline().rstrip("\n")
             return obj
 
         return None

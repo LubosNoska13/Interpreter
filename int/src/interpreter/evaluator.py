@@ -56,42 +56,40 @@ class Evaluator:
         receiver = self.evaluate(send.receiver, env)
         args = [self.evaluate(arg.expr, env) for arg in send.args]
 
-        result = self._dispatch_builtin(receiver, send.selector, args)
-        if result is not None:
-            return result
-
         is_super = send.receiver.var is not None and send.receiver.var.name == "super"
         if is_super and env.current_class is not None and env.current_class.parent is not None:
             start_class = env.current_class.parent
         else:
             start_class = receiver.sol_class
 
-        method = self._lookup_method(start_class, send.selector)
-        if method is None:
-            if len(args) == 1 and not send.selector.endswith(":"):
+        # 1. User-defined methods first
+        lookup = self._lookup_method(start_class, send.selector)
+        if lookup is not None:
+            method, defining_class = lookup
+            return self._execute_method(method, receiver, args, defining_class)
+
+        # 2. Built-in methods (respecting inheritance)
+        builtin_result = self._dispatch_builtin(receiver, send.selector, args)
+        if builtin_result is not None:
+            return builtin_result
+
+        # 3. Attribute setter / getter
+        if len(args) == 1 and send.selector.endswith(":"):
+            attr_name = send.selector.rstrip(":")
+            if attr_name in receiver.sol_class.methods:
                 raise InterpreterError(
-                    ErrorCode.INT_DNU,
-                    f"'{receiver.sol_class.name}' does not understand '{send.selector}'",
+                    ErrorCode.INT_INST_ATTR, f"Attribute '{attr_name}' collides with method"
                 )
+            receiver.attributes[attr_name] = args[0]
+            return args[0]
 
-            if len(args) == 1:
-                attr_name = send.selector.rstrip(":")
-                if attr_name in receiver.sol_class.methods:
-                    raise InterpreterError(
-                        ErrorCode.INT_INST_ATTR, f"Attribute '{attr_name}' collides with method"
-                    )
-                receiver.attributes[attr_name] = args[0]
-                return args[0]
+        if len(args) == 0 and send.selector in receiver.attributes:
+            return receiver.attributes[send.selector]
 
-            if len(args) == 0 and send.selector in receiver.attributes:
-                return receiver.attributes[send.selector]
-
-            raise InterpreterError(
-                ErrorCode.INT_DNU,
-                f"'{receiver.sol_class.name}' does not understand '{send.selector}'",
-            )
-
-        return self._execute_method(method, receiver, args, start_class)
+        raise InterpreterError(
+            ErrorCode.INT_DNU,
+            f"'{receiver.sol_class.name}' does not understand '{send.selector}'",
+        )
 
     def _execute_method(
         self, method: Method, receiver: SOLObject, args: list[SOLObject], current_class: SOLClass
@@ -377,38 +375,44 @@ class Evaluator:
 
         return None
 
+    def _builtin_base(self, sol_class: SOLClass) -> str | None:
+        """Return the name of the nearest built-in ancestor class, or None."""
+        builtin_names = {"String", "Integer", "True", "False", "Nil", "Block"}
+        current: SOLClass | None = sol_class
+        while current is not None:
+            if current.name in builtin_names:
+                return current.name
+            current = current.parent
+        return None
+
     def _dispatch_builtin(
         self, receiver: SOLObject, selector: str, args: list[SOLObject]
     ) -> SOLObject | None:
         """Dispatch a built-in method call, returning None if no built-in matches."""
-        class_name = receiver.sol_class.name
-
         if receiver.is_class_ref and receiver.referred_class is not None:
             return self._dispatch_class(receiver.referred_class, selector, args)
 
-        if class_name == "String":
+        base = self._builtin_base(receiver.sol_class)
+
+        if base == "String":
             return self._dispatch_string(receiver, selector, args)
-
-        if class_name == "Integer":
+        if base == "Integer":
             return self._dispatch_integer(receiver, selector, args)
-
-        if class_name in ("True", "False"):
+        if base in ("True", "False"):
             return self._dispatch_bool(receiver, selector, args)
-
-        if class_name == "Nil":
+        if base == "Nil":
             return self._dispatch_nil(receiver, selector, args)
-
-        if class_name == "Block":
+        if base == "Block":
             return self._dispatch_block(receiver, selector, args)
 
         return self._dispatch_object(receiver, selector, args)
 
-    def _lookup_method(self, sol_class: SOLClass, selector: str) -> Method | None:
-        """Search for a method by selector in the class hierarchy, returning None if not found."""
+    def _lookup_method(self, sol_class: SOLClass, selector: str) -> tuple[Method, SOLClass] | None:
+        """Search for a method by selector, returning the method and its defining class."""
         current: SOLClass | None = sol_class
         while current is not None:
             if selector in current.methods:
-                return current.methods[selector]
+                return current.methods[selector], current
             current = current.parent
         return None
 

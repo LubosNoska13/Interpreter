@@ -19,7 +19,7 @@ from interpreter.builtins import create_builtins
 from interpreter.error_codes import ErrorCode
 from interpreter.evaluator import Evaluator
 from interpreter.exceptions import InterpreterError
-from interpreter.input_model import Program
+from interpreter.input_model import Method, Program
 from interpreter.sol_object import SOLClass, SOLObject
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,16 @@ class Interpreter:
                 )
 
             parent = self.classes[class_def.parent]
-            methods = {method.selector: method for method in class_def.methods}
+            methods: dict[str, Method] = {}
+            for method in class_def.methods:
+                expected = method.selector.count(":")
+                real = len(method.block.parameters)
+                if expected != real:
+                    raise InterpreterError(
+                        ErrorCode.SEM_ARITY,
+                        f"Method '{method.selector}' expects {expected} params, block has {real}",
+                    )
+                methods[method.selector] = method
             self.classes[class_def.name] = SOLClass(class_def.name, parent, methods)
 
     def load_program(self, source_file_path: Path) -> None:

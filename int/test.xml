@@ -1,38 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
-  <program language="SOL26" description="isNil test">                                   
-    <class name="Counter" parent="Object">
-      <method selector="init">                                                          
-        <block arity="0">
-          <assign order="1">                                                            
-            <var name="dummy"/>
-            <expr><send selector="count:">
-              <expr><var name="self"/></expr>                                           
-              <arg order="1"><expr><literal class="Integer" value="0"/></expr></arg>
-            </send></expr>                                                              
-          </assign>
-        </block>                                                                        
-      </method>
-    </class>                                                                            
-    <class name="Main" parent="Object">
-      <method selector="run">
-        <block arity="0">
-          <assign order="1">
-            <var name="c"/>
-            <expr><send selector="new">                                                 
-              <expr><literal class="Counter" value="Counter"/></expr>
-            </send></expr>                                                              
-          </assign>
-          <assign order="2">
-            <var name="dummy"/>
-            <expr><send selector="print">
-              <expr><send selector="asString">                                          
-                <expr><send selector="isNil">
-                  <expr><var name="c"/></expr>                                          
-                </send></expr>
-              </send></expr>
-            </send></expr>
-          </assign>                                                                     
-        </block>
-      </method>                                                                         
-    </class>      
-  </program>
+<?xml version="1.0" encoding="UTF-8"?>                                                                                                                                                      
+  <program language="SOL26">            
+    <class name="Main" parent="Object">                                                                                                                                                       
+      <method selector="run">          
+        <block arity="0">    
+        </block>         
+      </method>                                                                                                                                                                               
+      <method selector="plus:">
+        <block arity="1">                                                                                                                                                                     
+          <parameter name="x" order="1"/>
+        </block>                         
+      </method> 
+    </class>   
+  </program>   

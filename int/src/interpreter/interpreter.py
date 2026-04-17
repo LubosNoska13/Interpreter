@@ -92,10 +92,10 @@ class Interpreter:
         if "Main" not in self.classes:
             raise InterpreterError(ErrorCode.SEM_MAIN, "Missing 'Main' class")
         main_class = self.classes["Main"]
-        if "run" not in main_class.methods:
-            raise InterpreterError(ErrorCode.SEM_MAIN, "Missing 'run' method in 'Main'")
-
         evaluator = Evaluator(self.classes, input_io)
         main_instance = SOLObject(main_class, {})
-        run_method = main_class.methods["run"]
-        evaluator._execute_method(run_method, main_instance, [], self.classes["Main"])
+        run_lookup = evaluator._lookup_method(main_class, "run")
+        if run_lookup is None:
+            raise InterpreterError(ErrorCode.SEM_MAIN, "Missing 'run' method in 'Main'")
+        run_method, defining_class = run_lookup
+        evaluator._execute_method(run_method, main_instance, [], defining_class)

@@ -1,14 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>                                                                                                                                                      
-  <program language="SOL26">            
-    <class name="Main" parent="Object">                                                                                                                                                       
-      <method selector="run">          
-        <block arity="0">    
-        </block>         
+  <program language="SOL26">                                                                                                                                                                  
+    <class name="Base" parent="Object">                                                                                                                                                       
+      <method selector="name">                                                                                                                                                                
+        <block arity="0">                                                                                                                                                                     
+          <assign order="1">                                                                                                                                                                  
+            <var name="_"/>                                                                                                                                                                   
+            <expr><send selector="print">
+              <expr><literal class="String" value="Base"/></expr>
+            </send></expr>                                                                                                                                                                    
+          </assign>
+        </block>                                                                                                                                                                              
+      </method>   
+    </class>
+    <class name="Child" parent="Base">
+      <method selector="name">
+        <block arity="0">
+          <assign order="1">
+            <var name="_"/>                                                                                                                                                                   
+            <expr><send selector="name">
+              <expr><var name="super"/></expr>                                                                                                                                                
+            </send></expr>
+          </assign>
+          <assign order="2">
+            <var name="_"/>
+            <expr><send selector="print">                                                                                                                                                     
+              <expr><literal class="String" value="Child"/></expr>
+            </send></expr>                                                                                                                                                                    
+          </assign>
+        </block>
+      </method>
+    </class>
+    <class name="Main" parent="Object">
+      <method selector="run">                                                                                                                                                                 
+        <block arity="0">
+          <assign order="1">                                                                                                                                                                  
+            <var name="c"/>
+            <expr><send selector="new">
+              <expr><literal class="Child" value="Child"/></expr>
+            </send></expr>                                                                                                                                                                    
+          </assign>
+          <assign order="2">                                                                                                                                                                  
+            <var name="_"/>
+            <expr><send selector="name">
+              <expr><var name="c"/></expr>
+            </send></expr>
+          </assign>
+        </block>
       </method>                                                                                                                                                                               
-      <method selector="plus:">
-        <block arity="1">                                                                                                                                                                     
-          <parameter name="x" order="1"/>
-        </block>                         
-      </method> 
-    </class>   
-  </program>   
+    </class>
+  </program> 

@@ -51,14 +51,24 @@ class Evaluator:
         obj.block_env = env
         return obj
 
+    def _get_current_class(self, env: Environment) -> SOLClass | None:
+        """Walk up the environment chain to find the nearest current_class."""
+        current: Environment | None = env
+        while current is not None:
+            if current.current_class is not None:
+                return current.current_class
+            current = current.parent
+        return None
+
     def _eval_send(self, send: Send, env: Environment) -> SOLObject:
         """Evaluate a message send by dispatching to the receiver's method."""
         receiver = self.evaluate(send.receiver, env)
         args = [self.evaluate(arg.expr, env) for arg in send.args]
 
         is_super = send.receiver.var is not None and send.receiver.var.name == "super"
-        if is_super and env.current_class is not None and env.current_class.parent is not None:
-            start_class = env.current_class.parent
+        current_class = self._get_current_class(env)
+        if is_super and current_class is not None and current_class.parent is not None:
+            start_class = current_class.parent
         else:
             start_class = receiver.sol_class
 
@@ -76,7 +86,7 @@ class Evaluator:
         # 3. Attribute setter / getter
         if len(args) == 1 and send.selector.endswith(":"):
             attr_name = send.selector.rstrip(":")
-            if attr_name in receiver.sol_class.methods:
+            if self._lookup_method(receiver.sol_class, attr_name) is not None:
                 raise InterpreterError(
                     ErrorCode.INT_INST_ATTR, f"Attribute '{attr_name}' collides with method"
                 )

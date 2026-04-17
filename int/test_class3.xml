@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26">
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="a"/>
+          <expr><send selector="new"><expr><literal class="Main" value="Main"/></expr></send></expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr><send selector="from:">
+            <expr><literal class="Main" value="Main"/></expr>
+            <arg order="1"><expr><literal class="Integer" value="5"/></expr></arg>
+          </send></expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

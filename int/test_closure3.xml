@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26">
+  <class name="Main" parent="Object">
+    <method selector="getValue">
+      <block arity="0">
+        <assign order="1">
+          <var name="r"/>
+          <expr><literal class="Integer" value="42"/></expr>
+        </assign>
+      </block>
+    </method>
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="b"/>
+          <expr><block arity="0">
+            <assign order="1">
+              <var name="r"/>
+              <expr><send selector="getValue">
+                <expr><var name="self"/></expr>
+              </send></expr>
+            </assign>
+          </block></expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr><send selector="print">
+            <expr><send selector="asString">
+              <expr><send selector="value">
+                <expr><var name="b"/></expr>
+              </send></expr>
+            </send></expr>
+          </send></expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

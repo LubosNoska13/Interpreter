@@ -426,6 +426,15 @@ class Evaluator:
             current = current.parent
         return None
 
+    def _is_instance_of(self, obj: SOLObject, sol_class: SOLClass) -> bool:
+        """Check if obj is an instance of sol_class or its subclass."""
+        current: SOLClass | None = obj.sol_class
+        while current is not None:
+            if current.name == sol_class.name:
+                return True
+            current = current.parent
+        return False
+
     def _dispatch_class(
         self, sol_class: SOLClass, selector: str, args: list[SOLObject]
     ) -> SOLObject | None:
@@ -439,6 +448,10 @@ class Evaluator:
             if sol_class.singleton_instance is not None:
                 return sol_class.singleton_instance
             original = args[0]
+            if not self._is_instance_of(original, sol_class):
+                raise InterpreterError(
+                    ErrorCode.INT_INVALID_ARG, "from: argument is not an instance of the class"
+                )
             obj = SOLObject(sol_class, dict(original.attributes))
             obj.native_value = original.native_value
             return obj

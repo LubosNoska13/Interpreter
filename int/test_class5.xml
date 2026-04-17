@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="SOL26">
+  <class name="Calc" parent="Object">
+    <method selector="add:to:">
+      <block arity="2">
+        <parameter name="x" order="1"/>
+        <parameter name="y" order="2"/>
+        <assign order="1">
+          <var name="r"/>
+          <expr><send selector="plus:">
+            <expr><var name="x"/></expr>
+            <arg order="1"><expr><var name="y"/></expr></arg>
+          </send></expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+  <class name="Main" parent="Object">
+    <method selector="run">
+      <block arity="0">
+        <assign order="1">
+          <var name="c"/>
+          <expr><send selector="new"><expr><literal class="Calc" value="Calc"/></expr></send></expr>
+        </assign>
+        <assign order="2">
+          <var name="_"/>
+          <expr><send selector="print">
+            <expr><send selector="asString">
+              <expr><send selector="add:to:">
+                <expr><var name="c"/></expr>
+                <arg order="1"><expr><literal class="Integer" value="3"/></expr></arg>
+                <arg order="2"><expr><literal class="Integer" value="7"/></expr></arg>
+              </send></expr>
+            </send></expr>
+          </send></expr>
+        </assign>
+      </block>
+    </method>
+  </class>
+</program>

@@ -9,19 +9,18 @@ RUN apt-get update && apt-get install -y curl && \
                                                                                                 
 COPY int/ /src/int/
 WORKDIR /src/int
-RUN pip install --no-cache-dir -e . \                                                            
+RUN pip install --no-cache-dir -e . \
     && pip install --no-cache-dir --group dev \
-    && ln -s "$(which ruff)" /src/int/ruff \                                                     
-    && ln -s "$(which mypy)" /src/int/mypy
-                                                                                                
+    && chmod +x /src/int/ruff /src/int/mypy
+
 RUN ./ruff check src && ./ruff format --check src
-RUN ./mypy src                                                                                   
-                
+RUN ./mypy src
+
 COPY tester/ /src/tester/
 RUN cd /src/tester && npm ci \
-    && ln -s /src/tester/node_modules/.bin/eslint /src/tester/eslint \                           
-    && ln -s /src/tester/node_modules/.bin/prettier /src/tester/prettier
-RUN cd /src/tester && ./eslint "src/**/*.ts" && ./prettier --check "src/**/*.ts"
+    && npm install -g eslint prettier \
+    && chmod +x /src/tester/eslint /src/tester/prettier
+RUN cd /src/tester && ./node_modules/.bin/eslint "src/**/*.ts" && ./node_modules/.bin/prettier --check "src/**/*.ts"
 
 ENTRYPOINT ["/bin/bash"]
 

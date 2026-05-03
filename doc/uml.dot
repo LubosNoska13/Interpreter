@@ -1,0 +1,199 @@
+digraph UML {
+    // Global layout
+    rankdir=TB;
+    graph [splines=polyline, nodesep=0.6, ranksep=1.0, fontname="Helvetica"];
+    node  [shape=plaintext, fontname="Helvetica", fontsize=10];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333"];
+
+    // ============================================================
+    // TEMPLATE CLASSES (grey)
+    // ============================================================
+
+    Program [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>Program</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ language : str</TD></TR>
+            <TR><TD ALIGN="LEFT">+ classes : list&lt;ClassDef&gt;</TD></TR>
+        </TABLE>
+    >];
+
+    ClassDef [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>ClassDef</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ name : str</TD></TR>
+            <TR><TD ALIGN="LEFT">+ parent : str</TD></TR>
+            <TR><TD ALIGN="LEFT">+ methods : list&lt;Method&gt;</TD></TR>
+        </TABLE>
+    >];
+
+    Method [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>Method</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ selector : str</TD></TR>
+            <TR><TD ALIGN="LEFT">+ block : Block</TD></TR>
+        </TABLE>
+    >];
+
+    Block [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>Block</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ arity : int</TD></TR>
+            <TR><TD ALIGN="LEFT">+ parameters : list&lt;Parameter&gt;</TD></TR>
+            <TR><TD ALIGN="LEFT">+ assigns : list&lt;Assign&gt;</TD></TR>
+        </TABLE>
+    >];
+
+    Expr [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>Expr</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ literal : Literal | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ var : Var | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ block : Block | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ send : Send | None</TD></TR>
+        </TABLE>
+    >];
+
+    ErrorCode [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>&lt;&lt;enumeration&gt;&gt;<BR/>ErrorCode</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ SEM_MAIN = 31</TD></TR>
+            <TR><TD ALIGN="LEFT">+ SEM_ARITY = 33</TD></TR>
+            <TR><TD ALIGN="LEFT">+ INT_DNU = 51</TD></TR>
+            <TR><TD ALIGN="LEFT">+ INT_INVALID_ARG = 53</TD></TR>
+            <TR><TD ALIGN="LEFT">  . . .</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ fire(msg) : NoReturn</TD></TR>
+        </TABLE>
+    >];
+
+    InterpreterError [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#e8e8e8">
+            <TR><TD><B>InterpreterError</B> [šablóna]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ error_code : ErrorCode</TD></TR>
+        </TABLE>
+    >];
+
+    // ============================================================
+    // HYBRID CLASS
+    // ============================================================
+
+    Interpreter [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#fff7d6">
+            <TR><TD><B>Interpreter</B> [hybrid]</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">- current_program : Program | None</TD></TR>
+            <TR><TD ALIGN="LEFT">- classes : dict&lt;str, SOLClass&gt;</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ load_program(path)</TD></TR>
+            <TR><TD ALIGN="LEFT">+ execute(input_io)</TD></TR>
+            <TR><TD ALIGN="LEFT">- _load_classes()</TD></TR>
+        </TABLE>
+    >];
+
+    // ============================================================
+    // MY CLASSES
+    // ============================================================
+
+    SOLClass [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#d6ecff">
+            <TR><TD><B>SOLClass</B></TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ name : str</TD></TR>
+            <TR><TD ALIGN="LEFT">+ parent : SOLClass | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ methods : dict&lt;str, Method&gt;</TD></TR>
+            <TR><TD ALIGN="LEFT">+ singleton_instance : SOLObject | None</TD></TR>
+        </TABLE>
+    >];
+
+    SOLObject [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#d6ecff">
+            <TR><TD><B>SOLObject</B></TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ sol_class : SOLClass</TD></TR>
+            <TR><TD ALIGN="LEFT">+ attributes : dict&lt;str, SOLObject&gt;</TD></TR>
+            <TR><TD ALIGN="LEFT">+ native_value : int | str | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ block_node : Block | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ block_env : Environment | None</TD></TR>
+        </TABLE>
+    >];
+
+    Environment [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#d6ecff">
+            <TR><TD><B>Environment</B></TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ variables : dict&lt;str, SOLObject&gt;</TD></TR>
+            <TR><TD ALIGN="LEFT">+ parent : Environment | None</TD></TR>
+            <TR><TD ALIGN="LEFT">+ current_class : SOLClass | None</TD></TR>
+        </TABLE>
+    >];
+
+    Evaluator [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#d6ecff">
+            <TR><TD><B>Evaluator</B></TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">- classes : dict&lt;str, SOLClass&gt;</TD></TR>
+            <TR><TD ALIGN="LEFT">- input_io : TextIO</TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ evaluate(expr, env) : SOLObject</TD></TR>
+            <TR><TD ALIGN="LEFT">- _eval_send(send, env) : SOLObject</TD></TR>
+            <TR><TD ALIGN="LEFT">- _execute_method(...) : SOLObject</TD></TR>
+            <TR><TD ALIGN="LEFT">- _execute_block(...) : SOLObject</TD></TR>
+            <TR><TD ALIGN="LEFT">- _lookup_method(cls, sel)</TD></TR>
+            <TR><TD ALIGN="LEFT">- _dispatch_builtin / _dispatch_class</TD></TR>
+            <TR><TD ALIGN="LEFT">  . . .</TD></TR>
+        </TABLE>
+    >];
+
+    builtins [label=<
+        <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" BGCOLOR="#d6ecff">
+            <TR><TD><B>&lt;&lt;module&gt;&gt; builtins</B></TD></TR>
+            <HR/>
+            <TR><TD ALIGN="LEFT">+ create_builtins() : dict&lt;str, SOLClass&gt;</TD></TR>
+        </TABLE>
+    >];
+
+    // ============================================================
+    // RELATIONSHIPS - only the essential ones
+    // ============================================================
+
+    // Template AST tree (top-down composition)
+    Program   -> ClassDef   [arrowhead=diamond, arrowtail=none, dir=back, label="*"];
+    ClassDef  -> Method     [arrowhead=diamond, arrowtail=none, dir=back, label="*"];
+    Method    -> Block      [arrowhead=diamond, arrowtail=none, dir=back];
+    Block     -> Expr       [arrowhead=vee,     style=dashed];
+
+    // Error chain
+    InterpreterError -> ErrorCode [arrowhead=vee];
+
+    // Interpreter orchestrates everything
+    Interpreter -> Program    [arrowhead=vee, label="loads"];
+    Interpreter -> Evaluator  [arrowhead=vee, label="creates"];
+    Interpreter -> SOLClass   [arrowhead=diamond, arrowtail=none, dir=back, label="*"];
+    Interpreter -> builtins   [arrowhead=vee, style=dashed];
+
+    // Evaluator operates on runtime
+    Evaluator -> SOLObject    [arrowhead=vee, style=dashed, label="evaluates"];
+    Evaluator -> Environment  [arrowhead=vee, style=dashed];
+
+    // Runtime relationships (the core of interpreter logic)
+    SOLClass  -> SOLClass      [arrowhead=vee, label="parent"];
+    SOLClass  -> Method        [arrowhead=vee, label="methods"];
+    SOLObject -> SOLClass      [arrowhead=vee, label="type"];
+    Environment -> Environment [arrowhead=vee, label="parent (closure)"];
+
+    // ============================================================
+    // LAYOUT HINTS
+    // ============================================================
+
+    { rank=same; Program; ErrorCode; InterpreterError; }
+    { rank=same; ClassDef; Interpreter; Evaluator; }
+    { rank=same; Method; SOLClass; SOLObject; Environment; }
+    { rank=same; Block; Expr; builtins; }
+}
